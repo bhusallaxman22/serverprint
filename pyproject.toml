@@ -72,3 +72,6 @@ pretty = true
 
 [tool.setuptools.packages.find]
 include = ["app*"]
+
+[tool.setuptools.package-data]
+app = ["templates/**/*", "static/**/*"]

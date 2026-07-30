@@ -8,10 +8,23 @@ from app.database import get_db
 from app.dependencies import require_admin, require_csrf
 from app.models.user import User, UserRole
 from app.schemas.auth import UserResponse
-from app.schemas.users import UserUpdateRequest
+from app.schemas.users import UserCreateRequest, UserUpdateRequest
+from app.security import hash_password
 from app.services.audit_service import write_audit_log
 
 router = APIRouter(prefix="/admin/users", tags=["admin-users"])
+
+
+def _to_response(user: User) -> UserResponse:
+    return UserResponse(
+        id=user.id,
+        username=user.username,
+        role=user.role,
+        is_active=user.is_active,
+        must_change_password=user.must_change_password,
+        requires_approval=user.requires_approval,
+        print_mode=user.print_mode,
+    )
 
 
 @router.get("", response_model=list[UserResponse])
@@ -19,18 +32,62 @@ def list_users(
     _: object = Depends(require_admin), db: Session = Depends(get_db)
 ) -> list[UserResponse]:
     users = list(db.execute(select(User).order_by(User.created_at.asc())).scalars())
-    return [
-        UserResponse(
-            id=user.id,
-            username=user.username,
-            role=user.role,
-            is_active=user.is_active,
-            must_change_password=user.must_change_password,
-            requires_approval=user.requires_approval,
-            print_mode=user.print_mode,
+    return [_to_response(user) for user in users]
+
+
+@router.post("", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+def create_user(
+    payload: UserCreateRequest,
+    admin=Depends(require_csrf),
+    db: Session = Depends(get_db),
+) -> UserResponse:
+    if admin.role != UserRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Admin permission required."
         )
-        for user in users
-    ]
+
+    normalized = payload.username.casefold()
+    existing = db.execute(
+        select(User).where(User.username_normalized == normalized)
+    ).scalar_one_or_none()
+    if existing is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Username already exists."
+        )
+
+    user = User(
+        username=payload.username,
+        username_normalized=normalized,
+        password_hash=hash_password(payload.password),
+        role=payload.role,
+        is_active=payload.is_active,
+        must_change_password=payload.must_change_password,
+        daily_page_quota=payload.daily_page_quota,
+        weekly_page_quota=payload.weekly_page_quota,
+        requires_approval=payload.requires_approval,
+        print_mode=payload.print_mode,
+    )
+    db.add(user)
+    db.flush()
+    write_audit_log(
+        db=db,
+        action="user_created",
+        target_type="user",
+        target_id=str(user.id),
+        actor_user_id=admin.id,
+        details={
+            "username": user.username,
+            "role": user.role.value,
+            "is_active": user.is_active,
+            "requires_approval": user.requires_approval,
+            "print_mode": user.print_mode.value,
+            "daily_page_quota": user.daily_page_quota,
+            "weekly_page_quota": user.weekly_page_quota,
+        },
+    )
+    db.commit()
+    db.refresh(user)
+    return _to_response(user)
 
 
 @router.patch("/{user_id}", response_model=UserResponse)
@@ -86,12 +143,4 @@ def update_user(
         details=payload.model_dump(exclude_none=True),
     )
     db.commit()
-    return UserResponse(
-        id=user.id,
-        username=user.username,
-        role=user.role,
-        is_active=user.is_active,
-        must_change_password=user.must_change_password,
-        requires_approval=user.requires_approval,
-        print_mode=user.print_mode,
-    )
+    return _to_response(user)

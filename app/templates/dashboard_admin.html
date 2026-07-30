@@ -1,45 +1,110 @@
 {% extends "base.html" %}
 {% block title %} · Admin Dashboard{% endblock %}
 {% block content %}
-<section class="cards-grid">
-  <article class="card"><h3>Pending approvals</h3><p class="metric">{{ summary.pending_approval }}</p></article>
-  <article class="card"><h3>Active users</h3><p class="metric">{{ summary.active_users }}</p></article>
-  <article class="card"><h3>Failed today</h3><p class="metric">{{ summary.failed_today }}</p></article>
-  <article class="card"><h3>Jobs today</h3><p class="metric">{{ summary.jobs_today }}</p></article>
-</section>
-
-<section class="panel split">
-  <article class="card">
-    <h3>Pending approvals</h3>
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>Job</th><th>User</th><th>Pages</th><th>Requested</th><th>Action</th></tr></thead>
-        <tbody>
-          {% for job in pending_jobs %}
-          <tr>
-            <td>{{ job.job_uuid }}</td>
-            <td>{{ job.owner_username }}</td>
-            <td>{{ job.pages }} x {{ job.copies }}</td>
-            <td>{{ job.requested_at.strftime('%Y-%m-%d %H:%M') }}</td>
-            <td><a class="button xs" href="/ui/admin/jobs">Review</a></td>
-          </tr>
-          {% else %}
-          <tr><td colspan="5" class="muted">No pending approvals.</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
+<section class="space-y-5">
+  <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <div>
+      <h1 class="text-xl font-semibold tracking-tight text-ink sm:text-2xl">Admin dashboard</h1>
+      <p class="mt-1 text-sm text-ink-muted">Monitor approvals, activity, and submit print jobs.</p>
     </div>
-  </article>
+    <div class="flex flex-wrap gap-2">
+      <a
+        href="/ui/admin/users"
+        class="touch-btn inline-flex items-center justify-center rounded-lg border border-canvas-border px-4 text-sm font-medium text-ink transition hover:bg-white/5"
+      >Create user</a>
+      <a
+        href="/ui/admin/jobs#admin-upload"
+        class="touch-btn inline-flex items-center justify-center rounded-lg bg-accent px-4 text-sm font-semibold text-white transition hover:bg-accent-soft"
+      >New print job</a>
+    </div>
+  </div>
 
-  <article class="card">
-    <h3>Recent audit entries</h3>
-    <ul class="audit-list">
-      {% for row in recent_audits %}
-      <li><strong>{{ row.action }}</strong> by {{ row.actor }} on {{ row.target }}<br /><small>{{ row.created_at.strftime('%Y-%m-%d %H:%M') }} · {{ row.detail }}</small></li>
-      {% else %}
-      <li class="muted">No audit entries available.</li>
-      {% endfor %}
-    </ul>
-  </article>
+  <section class="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+    <article class="rounded-xl border border-canvas-border bg-canvas-raised/80 p-3 shadow-panel sm:p-4">
+      <h2 class="text-xs font-medium text-ink-muted sm:text-sm">Pending approvals</h2>
+      <p class="mt-1 text-2xl font-semibold tracking-tight text-ink sm:mt-2 sm:text-3xl">{{ summary.pending_approval }}</p>
+    </article>
+    <article class="rounded-xl border border-canvas-border bg-canvas-raised/80 p-3 shadow-panel sm:p-4">
+      <h2 class="text-xs font-medium text-ink-muted sm:text-sm">Active users</h2>
+      <p class="mt-1 text-2xl font-semibold tracking-tight text-ink sm:mt-2 sm:text-3xl">{{ summary.active_users }}</p>
+    </article>
+    <article class="rounded-xl border border-canvas-border bg-canvas-raised/80 p-3 shadow-panel sm:p-4">
+      <h2 class="text-xs font-medium text-ink-muted sm:text-sm">Failed today</h2>
+      <p class="mt-1 text-2xl font-semibold tracking-tight text-ink sm:mt-2 sm:text-3xl">{{ summary.failed_today }}</p>
+    </article>
+    <article class="rounded-xl border border-canvas-border bg-canvas-raised/80 p-3 shadow-panel sm:p-4">
+      <h2 class="text-xs font-medium text-ink-muted sm:text-sm">Jobs today</h2>
+      <p class="mt-1 text-2xl font-semibold tracking-tight text-ink sm:mt-2 sm:text-3xl">{{ summary.jobs_today }}</p>
+    </article>
+  </section>
+
+  <div id="admin-upload">
+    {% with
+      upload_title='Submit a print job',
+      upload_action='/ui/admin/jobs/upload',
+      upload_target='this',
+      include_job_filters=false,
+      file_input_id='admin-dash-file-input',
+      redirect_to='/ui/admin/jobs'
+    %}
+      {% include 'partials/print_upload_form.html' %}
+    {% endwith %}
+  </div>
+
+  <section class="grid gap-4 xl:grid-cols-2">
+    <article class="min-w-0 rounded-xl border border-canvas-border bg-canvas-raised/80 p-4 shadow-panel sm:p-5">
+      <div class="flex items-center justify-between gap-3">
+        <h2 class="text-base font-semibold text-ink">Pending approvals</h2>
+        <a href="/ui/admin/jobs" class="text-sm font-medium text-sky-300 hover:text-sky-200">View all</a>
+      </div>
+      <div class="mt-4 min-w-0">
+        <table class="mobile-cards min-w-full text-left text-sm">
+          <thead class="border-b border-canvas-border text-xs uppercase tracking-wide text-slate-400">
+            <tr>
+              <th class="px-2 py-3 font-medium">Job</th>
+              <th class="px-2 py-3 font-medium">User</th>
+              <th class="px-2 py-3 font-medium">Pages</th>
+              <th class="px-2 py-3 font-medium">Requested</th>
+              <th class="px-2 py-3 font-medium">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for job in pending_jobs %}
+            <tr class="align-top md:border-b md:border-canvas-border/80">
+              <td class="px-2 py-3 font-mono text-xs text-ink" data-label="Job">{{ job.job_uuid }}</td>
+              <td class="px-2 py-3 text-ink" data-label="User">{{ job.owner_username }}</td>
+              <td class="px-2 py-3 text-ink-muted" data-label="Pages">{{ job.pages }} × {{ job.copies }}</td>
+              <td class="px-2 py-3 text-ink-muted" data-label="Requested">{{ job.requested_at.strftime('%Y-%m-%d %H:%M') }}</td>
+              <td class="px-2 py-3" data-label="Action">
+                <a
+                  class="touch-btn inline-flex items-center rounded-md border border-canvas-border px-3 text-sm font-medium text-ink transition hover:bg-white/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400"
+                  href="/ui/admin/jobs"
+                >Review</a>
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="5" class="px-2 py-8 text-center text-sm text-ink-muted">No pending approvals. Queue looks clear.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </article>
+
+    <article class="min-w-0 rounded-xl border border-canvas-border bg-canvas-raised/80 p-4 shadow-panel sm:p-5">
+      <h2 class="text-base font-semibold text-ink">Recent audit entries</h2>
+      <ul class="mt-4 space-y-3">
+        {% for row in recent_audits %}
+        <li class="rounded-lg border border-canvas-border/70 bg-canvas/40 px-3 py-2.5">
+          <p class="break-words text-sm text-ink"><span class="font-semibold">{{ row.action }}</span> by {{ row.actor }} on {{ row.target }}</p>
+          <p class="mt-1 break-words text-xs text-ink-muted">{{ row.created_at.strftime('%Y-%m-%d %H:%M') }} · {{ row.detail }}</p>
+        </li>
+        {% else %}
+        <li class="rounded-lg border border-dashed border-canvas-border/70 px-3 py-6 text-center text-sm text-ink-muted">No audit entries available.</li>
+        {% endfor %}
+      </ul>
+    </article>
+  </section>
 </section>
 {% endblock %}

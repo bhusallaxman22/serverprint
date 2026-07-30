@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import re
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -16,7 +18,7 @@ from app.database import get_db
 from app.dependencies import get_app_settings, get_current_user, require_admin
 from app.models.audit_log import AuditLog
 from app.models.print_job import PrintJob, PrintJobStatus
-from app.models.user import User, UserRole
+from app.models.user import PrintMode, User, UserRole
 from app.security import hash_password, new_csrf_token, verify_password
 from app.services.audit_service import write_audit_log
 from app.services.cups_service import CUPSService
@@ -32,8 +34,13 @@ from app.services.job_service import (
 from app.services.printer_status_service import get_printer_status_snapshot
 from app.services.quota_service import QuotaExceededError, QuotaService
 
+_USERNAME_RE = re.compile(r"^[A-Za-z0-9._-]{3,64}$")
+
 router = APIRouter()
-templates = Jinja2Templates(directory="app/templates")
+# Resolve from package location so templates work under gunicorn/Docker
+# regardless of process CWD (relative "app/templates" breaks when CWD ≠ project root).
+TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "templates"
+templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 
 def _flash(request: Request, level: str, message: str) -> None:
@@ -45,6 +52,22 @@ def _pop_flashes(request: Request) -> list[dict[str, str]]:
     flashes = request.session.get("flashes", [])
     request.session["flashes"] = []
     return flashes
+
+
+def _finalize_htmx(request: Request, response: Response) -> Response:
+    """Surface session flashes as live toasts for HTMX partial responses."""
+    if request.headers.get("hx-request"):
+        flashes = _pop_flashes(request)
+        if flashes:
+            response.headers["HX-Trigger"] = json.dumps({"printdrop:toast": flashes})
+    return response
+
+
+def _quota_snapshot(db: Session, user: User, settings: Settings) -> dict[str, int]:
+    quota_service = QuotaService(settings.tz)
+    daily_start, weekly_start = quota_service._period_starts_utc(datetime.now(UTC))
+    usage = quota_service._get_usage(db, user.id, daily_start, weekly_start)
+    return {"used": usage.daily_used, "total": user.daily_page_quota}
 
 
 def _printer_payload(settings: Settings) -> dict[str, Any]:
@@ -237,18 +260,15 @@ def user_jobs_partial(
     )
 
 
-@router.post("/ui/dashboard/upload", response_class=HTMLResponse)
-async def upload_job(
+async def _submit_print_upload(
+    *,
     request: Request,
-    file: UploadFile = File(...),
-    copies: int = Form(1),
-    db: Session = Depends(get_db),
-    settings: Settings = Depends(get_app_settings),
-    current_user: User = Depends(get_current_user),
-) -> HTMLResponse:
-    if current_user.role == UserRole.ADMIN:
-        raise HTTPException(status_code=403, detail="User-only endpoint")
-
+    file: UploadFile,
+    copies: int,
+    db: Session,
+    settings: Settings,
+    current_user: User,
+) -> None:
     content = await file.read()
     errors: list[str] = []
     if not file.filename:
@@ -268,18 +288,7 @@ async def upload_job(
     if errors:
         for message in errors:
             _flash(request, "error", message)
-        jobs = list(
-            db.execute(
-                select(PrintJob)
-                .where(PrintJob.user_id == current_user.id)
-                .order_by(PrintJob.submitted_at.desc())
-            ).scalars()
-        )
-        return templates.TemplateResponse(
-            request,
-            "partials/user_job_rows.html",
-            {"request": request, "jobs": [_map_job(job, current_user.username) for job in jobs]},
-        )
+        return
 
     assert metadata is not None
     stored_filename = f"{uuid4()}{Path(file.filename or 'document').suffix.lower()}"
@@ -311,12 +320,37 @@ async def upload_job(
         db.rollback()
         (settings.uploads_root / stored_filename).unlink(missing_ok=True)
         _flash(request, "error", str(exc))
-    else:
-        if current_user.requires_approval:
-            _flash(request, "success", f"Queued {file.filename} for approval.")
-        else:
-            _flash(request, "success", f"Queued {file.filename} for printing.")
+        return
 
+    if current_user.requires_approval:
+        _flash(request, "success", f"Queued {file.filename} for approval.")
+    else:
+        _flash(request, "success", f"Queued {file.filename} for printing.")
+
+
+@router.post("/ui/dashboard/upload", response_class=HTMLResponse)
+async def upload_job(
+    request: Request,
+    file: UploadFile = File(...),
+    copies: int = Form(1),
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_app_settings),
+    current_user: User = Depends(get_current_user),
+) -> Response:
+    if current_user.role == UserRole.ADMIN:
+        raise HTTPException(
+            status_code=403,
+            detail="Admins submit print jobs from the admin Print jobs page.",
+        )
+
+    await _submit_print_upload(
+        request=request,
+        file=file,
+        copies=copies,
+        db=db,
+        settings=settings,
+        current_user=current_user,
+    )
     jobs = list(
         db.execute(
             select(PrintJob)
@@ -324,11 +358,12 @@ async def upload_job(
             .order_by(PrintJob.submitted_at.desc())
         ).scalars()
     )
-    return templates.TemplateResponse(
+    response = templates.TemplateResponse(
         request,
         "partials/user_job_rows.html",
         {"request": request, "jobs": [_map_job(job, current_user.username) for job in jobs]},
     )
+    return _finalize_htmx(request, response)
 
 
 @router.get("/ui/admin/dashboard", response_class=HTMLResponse)
@@ -376,6 +411,9 @@ def admin_dashboard(
         {
             "nav_key": "admin-dashboard",
             "summary": summary,
+            "quota": _quota_snapshot(db, current_user, settings),
+            "print_mode": current_user.print_mode.value,
+            "requires_approval": current_user.requires_approval,
             "pending_jobs": [
                 _map_job(job, username_map.get(job.user_id, "unknown")) for job in pending_jobs[:8]
             ],
@@ -450,6 +488,110 @@ def users_partial(
     )
 
 
+@router.post("/ui/admin/users/create", response_class=HTMLResponse)
+def users_create(
+    request: Request,
+    username: str = Form(""),
+    password: str = Form(""),
+    role: str = Form("user"),
+    is_active: bool = Form(False),
+    requires_approval: bool = Form(False),
+    print_mode: str = Form("bw"),
+    daily_page_quota: int = Form(250),
+    weekly_page_quota: int = Form(1000),
+    must_change_password: bool = Form(False),
+    search: str = Form(""),
+    role_filter: str = Form("all"),
+    show_inactive: bool = Form(True),
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin),
+) -> Response:
+    cleaned = username.strip()
+    errors: list[str] = []
+    if not _USERNAME_RE.fullmatch(cleaned):
+        errors.append("Username must be 3–64 characters and use only letters, numbers, . _ -")
+    if len(password) < 8:
+        errors.append("Password must be at least 8 characters.")
+    try:
+        target_role = UserRole(role)
+    except ValueError:
+        errors.append("Invalid role.")
+        target_role = UserRole.USER
+    try:
+        target_mode = PrintMode(print_mode)
+    except ValueError:
+        errors.append("Invalid print mode.")
+        target_mode = PrintMode.BW
+
+    if not errors:
+        normalized = cleaned.casefold()
+        existing = db.execute(
+            select(User).where(User.username_normalized == normalized)
+        ).scalar_one_or_none()
+        if existing is not None:
+            errors.append("Username already exists.")
+
+    if errors:
+        for message in errors:
+            _flash(request, "error", message)
+        response = users_partial(
+            request=request,
+            search=search,
+            role=role_filter,
+            show_inactive=show_inactive,
+            db=db,
+            _=admin,
+        )
+        return _finalize_htmx(request, response)
+
+    user = User(
+        username=cleaned,
+        username_normalized=cleaned.casefold(),
+        password_hash=hash_password(password),
+        role=target_role,
+        is_active=is_active,
+        must_change_password=must_change_password,
+        daily_page_quota=max(1, daily_page_quota),
+        weekly_page_quota=max(1, weekly_page_quota),
+        requires_approval=requires_approval,
+        print_mode=target_mode,
+    )
+    db.add(user)
+    db.flush()
+    write_audit_log(
+        db=db,
+        action="user_created",
+        target_type="user",
+        target_id=str(user.id),
+        actor_user_id=admin.id,
+        details={
+            "username": user.username,
+            "role": user.role.value,
+            "is_active": user.is_active,
+            "requires_approval": user.requires_approval,
+            "print_mode": user.print_mode.value,
+            "daily_page_quota": user.daily_page_quota,
+            "weekly_page_quota": user.weekly_page_quota,
+        },
+    )
+    db.commit()
+    response = users_partial(
+        request=request,
+        search=search,
+        role=role_filter,
+        show_inactive=show_inactive,
+        db=db,
+        _=admin,
+    )
+    response.headers["HX-Trigger"] = json.dumps(
+        {
+            "printdrop:toast": [{"level": "success", "message": f"Created user {user.username}."}],
+            "printdrop:close-create-user": True,
+        }
+    )
+    return response
+
+
 @router.post("/ui/admin/users/{user_id}/update", response_class=HTMLResponse)
 def users_update(
     user_id: int,
@@ -460,17 +602,22 @@ def users_update(
     role: str = Form("user"),
     is_active: bool = Form(False),
     requires_approval: bool = Form(False),
+    print_mode: str = Form("bw"),
     daily_page_quota: int = Form(250),
     weekly_page_quota: int = Form(1000),
     reset_password: bool = Form(False),
     temp_password: str = Form(""),
     db: Session = Depends(get_db),
     admin: User = Depends(require_admin),
-) -> HTMLResponse:
+) -> Response:
     user = db.get(User, user_id)
     if user is not None:
         target_role = UserRole(role)
         target_active = is_active
+        try:
+            target_mode = PrintMode(print_mode)
+        except ValueError:
+            target_mode = user.print_mode
         if user.role == UserRole.ADMIN and (target_role != UserRole.ADMIN or not target_active):
             active_admin_count = int(
                 db.execute(
@@ -481,7 +628,7 @@ def users_update(
             )
             if active_admin_count <= 1:
                 _flash(request, "error", "Cannot disable or demote the last active admin.")
-                return users_partial(
+                response = users_partial(
                     request=request,
                     search=search,
                     role=role_filter,
@@ -489,9 +636,11 @@ def users_update(
                     db=db,
                     _=admin,
                 )
+                return _finalize_htmx(request, response)
         user.role = target_role
         user.is_active = target_active
         user.requires_approval = requires_approval
+        user.print_mode = target_mode
         user.daily_page_quota = max(1, daily_page_quota)
         user.weekly_page_quota = max(1, weekly_page_quota)
         if reset_password and temp_password.strip():
@@ -504,11 +653,16 @@ def users_update(
             target_type="user",
             target_id=str(user.id),
             actor_user_id=admin.id,
-            details={"role": user.role.value, "is_active": user.is_active},
+            details={
+                "role": user.role.value,
+                "is_active": user.is_active,
+                "print_mode": user.print_mode.value,
+            },
         )
         db.commit()
+        _flash(request, "success", f"Updated {user.username}.")
 
-    return users_partial(
+    response = users_partial(
         request=request,
         search=search,
         role=role_filter,
@@ -516,6 +670,7 @@ def users_update(
         db=db,
         _=admin,
     )
+    return _finalize_htmx(request, response)
 
 
 @router.get("/ui/admin/jobs", response_class=HTMLResponse)
@@ -537,6 +692,9 @@ def jobs_admin_page(
             "owner_filter": "",
             "search_query": "",
             "status_options": ["all"] + [state.value for state in PrintJobStatus],
+            "quota": _quota_snapshot(db, current_user, settings),
+            "print_mode": current_user.print_mode.value,
+            "requires_approval": current_user.requires_approval,
         }
     )
     return templates.TemplateResponse(request, "admin_jobs.html", context)
@@ -573,6 +731,37 @@ def jobs_partial(
             "search_query": search,
         },
     )
+
+
+@router.post("/ui/admin/jobs/upload", response_class=HTMLResponse)
+async def admin_upload_job(
+    request: Request,
+    file: UploadFile = File(...),
+    copies: int = Form(1),
+    status: str = Form("all"),
+    owner: str = Form(""),
+    search: str = Form(""),
+    redirect_to: str = Form(""),
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_app_settings),
+    admin: User = Depends(require_admin),
+) -> Response:
+    await _submit_print_upload(
+        request=request,
+        file=file,
+        copies=copies,
+        db=db,
+        settings=settings,
+        current_user=admin,
+    )
+    if redirect_to.startswith("/ui/"):
+        response = Response(status_code=204)
+        response.headers["HX-Redirect"] = redirect_to
+        return response
+    response = jobs_partial(
+        request=request, status=status, owner=owner, search=search, db=db, _=admin
+    )
+    return _finalize_htmx(request, response)
 
 
 @router.post("/ui/admin/jobs/{job_uuid}/action", response_class=HTMLResponse)

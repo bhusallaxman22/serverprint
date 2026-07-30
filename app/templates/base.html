@@ -1,73 +1,284 @@
 <!doctype html>
-<html lang="en" x-data="printdropUI()" :class="{ 'sidebar-open': sidebarOpen }">
+<html
+  lang="en"
+  class="h-full dark"
+  x-data="printdropUI()"
+  x-init="init()"
+  :class="{ 'overflow-hidden': sidebarOpen }"
+  @keydown.escape.window="closeSidebar(); closeCreateUser()"
+>
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>{{ app_name }}{% block title %}{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              canvas: {
+                DEFAULT: "#0b1220",
+                soft: "#111827",
+                raised: "#151e30",
+                border: "#243044",
+              },
+              ink: {
+                DEFAULT: "#e8eefb",
+                muted: "#94a3b8",
+              },
+              accent: {
+                DEFAULT: "#3b82f6",
+                soft: "#1d4ed8",
+              },
+            },
+            fontFamily: {
+              sans: ["IBM Plex Sans", "ui-sans-serif", "system-ui", "sans-serif"],
+            },
+            boxShadow: {
+              panel: "0 18px 40px rgba(0, 0, 0, 0.28)",
+            },
+          },
+        },
+      };
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="/static/css/app.css" />
     <script defer src="https://unpkg.com/htmx.org@1.9.12"></script>
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script defer src="/static/js/app.js"></script>
   </head>
-  <body>
+  <body class="min-h-full max-w-full overflow-x-hidden bg-canvas text-ink antialiased font-sans">
+    <div class="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(1200px_700px_at_0%_0%,rgba(37,99,235,0.14),transparent_55%),radial-gradient(900px_500px_at_100%_0%,rgba(14,165,233,0.06),transparent_50%),linear-gradient(180deg,#0b1220,#070b14)]"></div>
+
     {% if user %}
-    <aside class="sidebar" :class="{ 'is-open': sidebarOpen }" aria-label="Primary">
-      <div class="sidebar-header">
-        <h1>{{ app_name }}</h1>
-        <p>Print workflow console</p>
+    <div
+      class="fixed inset-0 z-30 bg-slate-950/60 transition-opacity lg:hidden"
+      x-show="sidebarOpen"
+      x-transition.opacity
+      @click="closeSidebar()"
+      @touchmove.prevent
+      style="display: none;"
+      aria-hidden="true"
+    ></div>
+
+    <aside
+      id="app-sidebar"
+      class="fixed inset-y-0 left-0 z-40 flex flex-col border-r border-canvas-border bg-canvas-soft/95 backdrop-blur-md transition-all duration-200 ease-out overscroll-contain"
+      :class="{
+        'translate-x-0': sidebarOpen,
+        '-translate-x-full': !sidebarOpen,
+        'lg:translate-x-0': true,
+        'w-[min(18rem,88vw)] lg:w-64': !sidebarCollapsed,
+        'w-[min(18rem,88vw)] lg:w-[4.5rem]': sidebarCollapsed
+      }"
+      aria-label="Primary"
+    >
+      <div
+        class="flex items-start gap-2 border-b border-canvas-border px-3 py-4"
+        :class="sidebarCollapsed ? 'lg:flex-col lg:items-center lg:px-2' : 'justify-between sm:px-4'"
+      >
+        <div class="min-w-0" :class="sidebarCollapsed && 'lg:hidden'">
+          <p class="truncate text-lg font-semibold tracking-tight text-ink">{{ app_name }}</p>
+          <p class="mt-1 text-sm text-ink-muted">Print workflow console</p>
+        </div>
+        <div
+          class="hidden h-9 w-9 items-center justify-center rounded-lg bg-sky-500/15 text-sky-300 ring-1 ring-sky-500/30 lg:flex"
+          :class="sidebarCollapsed ? 'lg:flex' : 'lg:hidden'"
+          aria-hidden="true"
+        >
+          <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M4 3a1 1 0 00-1 1v12a1 1 0 001 1h3V3H4zm5 0v14h7a1 1 0 001-1V4a1 1 0 00-1-1H9z"/></svg>
+        </div>
+        <button
+          type="button"
+          class="touch-btn inline-flex items-center justify-center rounded-lg border border-canvas-border text-ink-muted transition hover:bg-white/5 hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400 lg:hidden"
+          @click="closeSidebar()"
+          aria-label="Close navigation"
+        >
+          <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+          </svg>
+        </button>
+        <button
+          type="button"
+          class="touch-btn hidden items-center justify-center rounded-lg border border-canvas-border text-ink-muted transition hover:bg-white/5 hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400 lg:inline-flex"
+          @click="toggleCollapsed()"
+          :aria-expanded="(!sidebarCollapsed).toString()"
+          aria-controls="app-sidebar"
+          :aria-label="sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+          :title="sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+        >
+          <svg class="h-4 w-4 transition-transform" :class="sidebarCollapsed && 'rotate-180'" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+            <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
+          </svg>
+        </button>
       </div>
-      <nav class="nav-links">
+      <nav class="flex-1 space-y-1 overflow-y-auto px-2 py-4" :class="!sidebarCollapsed && 'sm:px-3'">
         {% if user.role == 'user' %}
-        <a href="/ui/dashboard" class="nav-link {% if nav_key == 'dashboard' %}active{% endif %}">Dashboard</a>
+        <a
+          href="/ui/dashboard"
+          @click="closeSidebar()"
+          title="Dashboard"
+          class="touch-btn group flex items-center gap-3 rounded-lg px-3 text-sm font-medium transition {% if nav_key == 'dashboard' %}bg-accent/15 text-sky-200 ring-1 ring-accent/40{% else %}text-ink-muted hover:bg-white/5 hover:text-ink{% endif %}"
+          :class="sidebarCollapsed && 'lg:justify-center lg:px-0'"
+        >
+          <svg class="h-5 w-5 shrink-0 opacity-90" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7A1 1 0 003 11h1v6a1 1 0 001 1h4v-4h2v4h4a1 1 0 001-1v-6h1a1 1 0 00.707-1.707l-7-7z"/></svg>
+          <span :class="sidebarCollapsed && 'lg:hidden'">Dashboard</span>
+        </a>
         {% else %}
-        <a href="/ui/admin/dashboard" class="nav-link {% if nav_key == 'admin-dashboard' %}active{% endif %}">Admin dashboard</a>
-        <a href="/ui/admin/users" class="nav-link {% if nav_key == 'users' %}active{% endif %}">User administration</a>
-        <a href="/ui/admin/jobs" class="nav-link {% if nav_key == 'jobs' %}active{% endif %}">Print-job administration</a>
-        <a href="/ui/admin/audit" class="nav-link {% if nav_key == 'audit' %}active{% endif %}">Audit log</a>
+        <a
+          href="/ui/admin/dashboard"
+          @click="closeSidebar()"
+          title="Admin dashboard"
+          class="touch-btn group flex items-center gap-3 rounded-lg px-3 text-sm font-medium transition {% if nav_key == 'admin-dashboard' %}bg-accent/15 text-sky-200 ring-1 ring-accent/40{% else %}text-ink-muted hover:bg-white/5 hover:text-ink{% endif %}"
+          :class="sidebarCollapsed && 'lg:justify-center lg:px-0'"
+        >
+          <svg class="h-5 w-5 shrink-0 opacity-90" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M2 4a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H3a1 1 0 01-1-1V4zm10-1a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V4a1 1 0 00-1-1h-4zM2 12a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H3a1 1 0 01-1-1v-4zm9 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"/></svg>
+          <span :class="sidebarCollapsed && 'lg:hidden'">Dashboard</span>
+        </a>
+        <a
+          href="/ui/admin/users"
+          @click="closeSidebar()"
+          title="Users"
+          class="touch-btn group flex items-center gap-3 rounded-lg px-3 text-sm font-medium transition {% if nav_key == 'users' %}bg-accent/15 text-sky-200 ring-1 ring-accent/40{% else %}text-ink-muted hover:bg-white/5 hover:text-ink{% endif %}"
+          :class="sidebarCollapsed && 'lg:justify-center lg:px-0'"
+        >
+          <svg class="h-5 w-5 shrink-0 opacity-90" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/></svg>
+          <span :class="sidebarCollapsed && 'lg:hidden'">Users</span>
+        </a>
+        <a
+          href="/ui/admin/jobs"
+          @click="closeSidebar()"
+          title="Print jobs"
+          class="touch-btn group flex items-center gap-3 rounded-lg px-3 text-sm font-medium transition {% if nav_key == 'jobs' %}bg-accent/15 text-sky-200 ring-1 ring-accent/40{% else %}text-ink-muted hover:bg-white/5 hover:text-ink{% endif %}"
+          :class="sidebarCollapsed && 'lg:justify-center lg:px-0'"
+        >
+          <svg class="h-5 w-5 shrink-0 opacity-90" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M5 4v3H4a2 2 0 00-2 2v3a2 2 0 002 2h1v2a2 2 0 002 2h6a2 2 0 002-2v-2h1a2 2 0 002-2V9a2 2 0 00-2-2h-1V4a2 2 0 00-2-2H7a2 2 0 00-2 2zm8 0H7v3h6V4zm0 8H7v4h6v-4z" clip-rule="evenodd"/></svg>
+          <span :class="sidebarCollapsed && 'lg:hidden'">Print jobs</span>
+        </a>
+        <a
+          href="/ui/admin/audit"
+          @click="closeSidebar()"
+          title="Audit log"
+          class="touch-btn group flex items-center gap-3 rounded-lg px-3 text-sm font-medium transition {% if nav_key == 'audit' %}bg-accent/15 text-sky-200 ring-1 ring-accent/40{% else %}text-ink-muted hover:bg-white/5 hover:text-ink{% endif %}"
+          :class="sidebarCollapsed && 'lg:justify-center lg:px-0'"
+        >
+          <svg class="h-5 w-5 shrink-0 opacity-90" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"/></svg>
+          <span :class="sidebarCollapsed && 'lg:hidden'">Audit log</span>
+        </a>
         {% endif %}
       </nav>
-      <form action="/logout" method="post" class="sidebar-logout">
-        <button type="submit" class="button ghost w-full">Sign out</button>
+      <form
+        action="/logout"
+        method="post"
+        class="border-t border-canvas-border p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+        :class="!sidebarCollapsed && 'sm:p-4'"
+      >
+        <button
+          type="submit"
+          title="Sign out"
+          class="touch-btn flex w-full items-center justify-center gap-2 rounded-lg border border-canvas-border bg-transparent px-3 text-sm font-medium text-ink-muted transition hover:bg-white/5 hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400"
+          :class="sidebarCollapsed && 'lg:px-0'"
+        >
+          <svg class="h-4 w-4 shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 001 1h6a1 1 0 100-2H4V5h5a1 1 0 000-2H3zm12.293 4.293a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 01-1.414-1.414L16.586 11H9a1 1 0 110-2h7.586l-1.293-1.293a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+          <span :class="sidebarCollapsed && 'lg:hidden'">Sign out</span>
+        </button>
       </form>
     </aside>
     {% endif %}
 
-    <main class="layout-main {% if not user %}auth-layout{% endif %}">
+    <main
+      class="min-h-screen min-w-0 transition-[padding] duration-200 ease-out"
       {% if user %}
-      <header class="topbar">
-        <button class="button icon" type="button" @click="sidebarOpen = !sidebarOpen" aria-label="Toggle navigation">
-          ☰
+      :class="sidebarCollapsed ? 'lg:pl-[4.5rem]' : 'lg:pl-64'"
+      {% endif %}
+    >
+      {% if user %}
+      <header class="sticky top-0 z-20 flex items-center gap-2 border-b border-canvas-border/80 bg-canvas/80 px-3 py-2.5 backdrop-blur-md sm:gap-3 sm:px-6 sm:py-3 pt-[max(0.625rem,env(safe-area-inset-top))]">
+        <button
+          class="touch-btn inline-flex shrink-0 items-center justify-center rounded-lg border border-canvas-border text-ink-muted transition hover:bg-white/5 hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400"
+          type="button"
+          @click="toggleNav()"
+          :aria-expanded="sidebarOpen.toString()"
+          aria-controls="app-sidebar"
+          aria-label="Toggle navigation"
+          :title="sidebarCollapsed ? 'Expand or open navigation' : 'Collapse or close navigation'"
+        >
+          <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+            <path fill-rule="evenodd" d="M3 5h14a1 1 0 110 2H3a1 1 0 110-2zm0 4h14a1 1 0 110 2H3a1 1 0 110-2zm0 4h14a1 1 0 110 2H3a1 1 0 110-2z" clip-rule="evenodd" />
+          </svg>
         </button>
-        <div>
-          <p class="topbar-user">{{ user.full_name }}</p>
-          <p class="topbar-role">{{ user.role|title }}</p>
+        <div class="min-w-0 flex-1">
+          <p class="truncate text-sm font-semibold text-ink">{{ user.full_name }}</p>
+          <p class="truncate text-xs capitalize text-ink-muted">{{ user.role }}</p>
         </div>
-        <div class="topbar-status" hx-get="/ui/printer/status" hx-trigger="load, every {{ ui_settings.print_status_poll_seconds }}s" hx-swap="outerHTML">
+        <div
+          class="min-w-0 max-w-[48%] shrink sm:max-w-none"
+          hx-get="/ui/printer/status"
+          hx-trigger="load, every {{ ui_settings.print_status_poll_seconds }}s"
+          hx-swap="outerHTML"
+        >
           {% include 'partials/printer_status_card.html' %}
         </div>
       </header>
-      {% endif %}
-
-      <section class="content-shell">
+      <div class="min-w-0 px-3 py-4 sm:px-6 sm:py-6 lg:px-8 pb-[max(1rem,env(safe-area-inset-bottom))]">
         {% block content %}{% endblock %}
-      </section>
+      </div>
+      {% else %}
+      <div class="flex min-h-screen items-center justify-center px-3 py-8 sm:px-4 sm:py-10 pb-[max(2rem,env(safe-area-inset-bottom))]">
+        {% block auth_content %}{% endblock %}
+      </div>
+      {% endif %}
     </main>
 
-    <div class="toast-region" aria-live="polite" aria-atomic="true">
+    <div
+      class="pointer-events-none fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-50 flex flex-col gap-2 sm:inset-x-auto sm:right-4 sm:left-auto sm:w-[min(22rem,calc(100vw-2rem))]"
+      aria-live="polite"
+      aria-atomic="true"
+    >
       {% for flash in flashes %}
-      <div class="toast {{ flash.level }}" x-data="{visible:true}" x-show="visible" x-init="setTimeout(() => visible = false, 4200)">
-        <p>{{ flash.message }}</p>
+      <div
+        class="pointer-events-auto toast-enter rounded-lg border border-canvas-border bg-canvas-raised px-4 py-3 text-sm text-ink shadow-panel {% if flash.level == 'success' %}border-l-4 border-l-emerald-400{% elif flash.level == 'warning' %}border-l-4 border-l-amber-400{% elif flash.level == 'error' %}border-l-4 border-l-rose-400{% else %}border-l-4 border-l-sky-400{% endif %}"
+        x-data="{ visible: true }"
+        x-show="visible"
+        x-init="setTimeout(() => visible = false, 4200)"
+        x-transition.opacity
+      >
+        <p class="break-words">{{ flash.message }}</p>
       </div>
       {% endfor %}
+      <template x-for="toast in liveToasts" :key="toast.id">
+        <div
+          class="pointer-events-auto toast-enter rounded-lg border border-canvas-border bg-canvas-raised px-4 py-3 text-sm text-ink shadow-panel"
+          :class="{
+            'border-l-4 border-l-emerald-400': toast.level === 'success',
+            'border-l-4 border-l-amber-400': toast.level === 'warning',
+            'border-l-4 border-l-rose-400': toast.level === 'error',
+            'border-l-4 border-l-sky-400': toast.level !== 'success' && toast.level !== 'warning' && toast.level !== 'error'
+          }"
+        >
+          <p class="break-words" x-text="toast.message"></p>
+        </div>
+      </template>
     </div>
 
-    <dialog class="confirm-dialog" x-ref="confirmDialog" @close="resetConfirm()">
-      <form method="dialog" class="dialog-card">
-        <h3 x-text="confirmTitle"></h3>
-        <p x-text="confirmMessage"></p>
-        <div class="dialog-actions">
-          <button class="button ghost" value="cancel">Cancel</button>
-          <button class="button danger" value="confirm" @click.prevent="confirmAction()">Confirm</button>
+    <dialog class="confirm-dialog rounded-xl" x-ref="confirmDialog" @close="resetConfirm()">
+      <form method="dialog" class="rounded-xl border border-canvas-border bg-canvas-raised p-4 text-ink shadow-panel sm:p-5">
+        <h3 class="text-base font-semibold" x-text="confirmTitle"></h3>
+        <p class="mt-2 text-sm text-ink-muted" x-text="confirmMessage"></p>
+        <div class="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <button
+            class="touch-btn rounded-lg border border-canvas-border px-3 text-sm font-medium text-ink-muted transition hover:bg-white/5 hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400"
+            value="cancel"
+          >Cancel</button>
+          <button
+            class="touch-btn rounded-lg bg-rose-600 px-3 text-sm font-medium text-white transition hover:bg-rose-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-300"
+            value="confirm"
+            @click.prevent="confirmAction()"
+          >Confirm</button>
         </div>
       </form>
     </dialog>

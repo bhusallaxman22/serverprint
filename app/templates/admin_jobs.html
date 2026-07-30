@@ -1,22 +1,83 @@
 {% extends "base.html" %}
 {% block title %} · Print Jobs{% endblock %}
 {% block content %}
-<section class="card">
-  <h2>Print-job administration</h2>
-  <form id="job-filter-form" class="filters" hx-get="/ui/admin/jobs/list" hx-target="#admin-job-rows" hx-swap="innerHTML" hx-trigger="change from:select, keyup changed delay:350ms from:input">
-    <select name="status" aria-label="Status filter">
-      {% for option in status_options %}
-      <option value="{{ option }}" {% if status_filter == option %}selected{% endif %}>{{ option|title }}</option>
-      {% endfor %}
-    </select>
-    <input type="search" name="owner" value="{{ owner_filter }}" placeholder="Filter by owner" aria-label="Owner filter" />
-    <input type="search" name="search" value="{{ search_query }}" placeholder="Search file or UUID" aria-label="Search jobs" />
-  </form>
-  <div class="table-wrap">
-    <table>
-      <thead><tr><th>Job</th><th>Owner</th><th>Status</th><th>Requested</th><th>Action</th></tr></thead>
-      <tbody id="admin-job-rows">{% include 'partials/admin_job_rows.html' %}</tbody>
-    </table>
+<section class="min-w-0 space-y-5">
+  <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <div class="min-w-0">
+      <h1 class="text-xl font-semibold tracking-tight text-ink sm:text-2xl">Print jobs</h1>
+      <p class="mt-1 text-sm text-ink-muted">Review queue activity and submit jobs under your admin account.</p>
+    </div>
+    <a
+      href="#admin-upload"
+      class="touch-btn inline-flex items-center justify-center gap-2 rounded-lg bg-accent px-4 text-sm font-semibold text-white transition hover:bg-accent-soft"
+    >
+      <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clip-rule="evenodd"/></svg>
+      New print job
+    </a>
+  </div>
+
+  <div id="admin-upload">
+    {% with
+      upload_title='New print job',
+      upload_action='/ui/admin/jobs/upload',
+      upload_target='#admin-job-rows',
+      include_job_filters=true,
+      file_input_id='admin-job-file-input'
+    %}
+      {% include 'partials/print_upload_form.html' %}
+    {% endwith %}
+  </div>
+
+  <div class="rounded-xl border border-canvas-border bg-canvas-raised/80 p-4 shadow-panel sm:p-5">
+    <h2 class="text-base font-semibold text-ink">All jobs</h2>
+    <form
+      id="job-filter-form"
+      class="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3"
+      hx-get="/ui/admin/jobs/list"
+      hx-target="#admin-job-rows"
+      hx-swap="innerHTML"
+      hx-trigger="change from:select, keyup changed delay:350ms from:input"
+    >
+      <select
+        class="touch-btn w-full rounded-lg border border-canvas-border bg-canvas px-3 text-base text-ink focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/30 sm:text-sm"
+        name="status"
+        aria-label="Status filter"
+      >
+        {% for option in status_options %}
+        <option value="{{ option }}" {% if status_filter == option %}selected{% endif %}>{{ option|title }}</option>
+        {% endfor %}
+      </select>
+      <input
+        class="touch-btn w-full rounded-lg border border-canvas-border bg-canvas px-3 text-base text-ink placeholder:text-slate-500 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/30 sm:text-sm"
+        type="search"
+        name="owner"
+        value="{{ owner_filter }}"
+        placeholder="Filter by owner"
+        aria-label="Owner filter"
+      />
+      <input
+        class="touch-btn w-full rounded-lg border border-canvas-border bg-canvas px-3 text-base text-ink placeholder:text-slate-500 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/30 sm:text-sm"
+        type="search"
+        name="search"
+        value="{{ search_query }}"
+        placeholder="Search file or UUID"
+        aria-label="Search jobs"
+      />
+    </form>
+    <div class="mt-5 min-w-0">
+      <table class="mobile-cards min-w-full text-left text-sm">
+        <thead class="border-b border-canvas-border text-xs uppercase tracking-wide text-slate-400">
+          <tr>
+            <th class="px-2 py-3 font-medium">Job</th>
+            <th class="px-2 py-3 font-medium">Owner</th>
+            <th class="px-2 py-3 font-medium">Status</th>
+            <th class="px-2 py-3 font-medium">Requested</th>
+            <th class="px-2 py-3 font-medium">Action</th>
+          </tr>
+        </thead>
+        <tbody id="admin-job-rows">{% include 'partials/admin_job_rows.html' %}</tbody>
+      </table>
+    </div>
   </div>
 </section>
 {% endblock %}

@@ -148,7 +148,7 @@ Compose uses uppercase variables from `deploy/.env` for both service and applica
 | `PRINTDROP_WORKER_COMMAND` | No | Optional worker command override | `python -m app.worker` |
 | `TZ` | No | Container timezone | `UTC` |
 | `MAX_UPLOAD_MB` | No | Upload size cap | `20` |
-| `SECURE_COOKIES` | No | Set secure cookie flag | `true` |
+| `SECURE_COOKIES` | No | `Secure` cookie flag (HTTPS only; keep `false` for plain HTTP `:8000`) | `false` |
 | `FORCE_PASSWORD_CHANGE_DEFAULT` | No | Require bootstrap password change | `true` |
 
 ## CUPS Queue Requirement

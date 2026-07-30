@@ -1,19 +1,41 @@
 {% extends "base.html" %}
 {% block title %} · Login{% endblock %}
-{% block content %}
-<div class="auth-card">
-  <h2>Welcome to PrintDrop</h2>
-  <p class="muted">Sign in to submit and monitor print jobs securely.</p>
-  <form action="/login" method="post" class="stack-form" autocomplete="on">
-    <label>
-      Username
-      <input name="username" required minlength="3" maxlength="64" autofocus />
+{% block auth_content %}
+<div class="w-full max-w-md rounded-2xl border border-canvas-border bg-canvas-raised/90 p-5 shadow-panel backdrop-blur sm:p-8">
+  <div class="mb-6">
+    <p class="text-xs font-medium uppercase tracking-[0.16em] text-sky-300/80 sm:text-sm sm:tracking-[0.18em]">{{ app_name }}</p>
+    <h1 class="mt-2 text-xl font-semibold tracking-tight text-ink sm:text-2xl">Sign in</h1>
+    <p class="mt-2 text-sm leading-relaxed text-ink-muted">Submit and monitor print jobs securely.</p>
+  </div>
+  <form action="/login" method="post" class="space-y-4" autocomplete="on">
+    <label class="block space-y-1.5 text-sm text-ink-muted">
+      <span>Username</span>
+      <input
+        class="touch-btn w-full rounded-lg border border-canvas-border bg-canvas px-3 text-base text-ink placeholder:text-slate-500 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/30 sm:text-sm"
+        name="username"
+        required
+        minlength="3"
+        maxlength="64"
+        autofocus
+        autocomplete="username"
+        inputmode="text"
+      />
     </label>
-    <label>
-      Password
-      <input name="password" type="password" required minlength="4" />
+    <label class="block space-y-1.5 text-sm text-ink-muted">
+      <span>Password</span>
+      <input
+        class="touch-btn w-full rounded-lg border border-canvas-border bg-canvas px-3 text-base text-ink placeholder:text-slate-500 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/30 sm:text-sm"
+        name="password"
+        type="password"
+        required
+        minlength="4"
+        autocomplete="current-password"
+      />
     </label>
-    <button class="button primary" type="submit">Sign in</button>
+    <button
+      class="touch-btn w-full rounded-lg bg-accent px-3 text-sm font-semibold text-white transition hover:bg-accent-soft focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300"
+      type="submit"
+    >Sign in</button>
   </form>
 </div>
 {% endblock %}

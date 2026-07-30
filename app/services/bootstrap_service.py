@@ -30,6 +30,7 @@ def bootstrap_admin(db: Session, settings: Settings) -> None:
         role=UserRole.ADMIN,
         is_active=True,
         must_change_password=settings.force_password_change_default,
+        requires_approval=False,
     )
     db.add(admin)
     db.commit()

@@ -1,10 +1,12 @@
 {% for job in jobs %}
-<tr>
-  <td>{{ job.job_uuid }}</td>
-  <td>{{ job.document_name }}</td>
-  <td><span class="badge {{ job.status.value }}">{{ job.status.value|title }}</span></td>
-  <td>{{ job.requested_at.strftime('%Y-%m-%d %H:%M') }}</td>
+<tr class="align-top md:border-b md:border-canvas-border/80">
+  <td class="px-2 py-3 font-mono text-xs text-ink" data-label="Job">{{ job.job_uuid }}</td>
+  <td class="px-2 py-3 text-ink" data-label="Document">{{ job.document_name }}</td>
+  <td class="px-2 py-3" data-label="Status"><span class="badge-status {{ job.status.value }}">{{ job.status.value|title }}</span></td>
+  <td class="px-2 py-3 text-ink-muted" data-label="Submitted">{{ job.requested_at.strftime('%Y-%m-%d %H:%M') }}</td>
 </tr>
 {% else %}
-<tr><td colspan="4" class="muted">No jobs match the filter.</td></tr>
+<tr>
+  <td colspan="4" class="px-2 py-6 text-sm text-ink-muted">No jobs match the filter.</td>
+</tr>
 {% endfor %}

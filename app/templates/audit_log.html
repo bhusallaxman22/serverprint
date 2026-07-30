@@ -1,16 +1,51 @@
 {% extends "base.html" %}
 {% block title %} · Audit Log{% endblock %}
 {% block content %}
-<section class="card">
-  <h2>Audit log</h2>
-  <form class="filters" hx-get="/ui/admin/audit/list" hx-target="#audit-rows" hx-swap="innerHTML" hx-trigger="change from:input, keyup changed delay:350ms from:input">
-    <input type="search" name="actor" value="{{ actor_filter }}" placeholder="Actor" aria-label="Actor filter" />
-    <input type="search" name="action" value="{{ action_filter }}" placeholder="Action" aria-label="Action filter" />
-    <input type="search" name="query" value="{{ search_query }}" placeholder="Target" aria-label="Search details" />
+<section class="min-w-0 rounded-xl border border-canvas-border bg-canvas-raised/80 p-4 shadow-panel sm:p-5">
+  <h1 class="text-lg font-semibold text-ink">Audit log</h1>
+  <form
+    class="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3"
+    hx-get="/ui/admin/audit/list"
+    hx-target="#audit-rows"
+    hx-swap="innerHTML"
+    hx-trigger="change from:input, keyup changed delay:350ms from:input"
+  >
+    <input
+      class="touch-btn w-full rounded-lg border border-canvas-border bg-canvas px-3 text-base text-ink placeholder:text-slate-500 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/30 sm:text-sm"
+      type="search"
+      name="actor"
+      value="{{ actor_filter }}"
+      placeholder="Actor"
+      aria-label="Actor filter"
+    />
+    <input
+      class="touch-btn w-full rounded-lg border border-canvas-border bg-canvas px-3 text-base text-ink placeholder:text-slate-500 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/30 sm:text-sm"
+      type="search"
+      name="action"
+      value="{{ action_filter }}"
+      placeholder="Action"
+      aria-label="Action filter"
+    />
+    <input
+      class="touch-btn w-full rounded-lg border border-canvas-border bg-canvas px-3 text-base text-ink placeholder:text-slate-500 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/30 sm:text-sm"
+      type="search"
+      name="query"
+      value="{{ search_query }}"
+      placeholder="Target"
+      aria-label="Search details"
+    />
   </form>
-  <div class="table-wrap">
-    <table>
-      <thead><tr><th>When</th><th>Actor</th><th>Action</th><th>Target</th><th>Detail</th></tr></thead>
+  <div class="mt-5 min-w-0">
+    <table class="mobile-cards min-w-full text-left text-sm">
+      <thead class="border-b border-canvas-border text-xs uppercase tracking-wide text-slate-400">
+        <tr>
+          <th class="px-2 py-3 font-medium">When</th>
+          <th class="px-2 py-3 font-medium">Actor</th>
+          <th class="px-2 py-3 font-medium">Action</th>
+          <th class="px-2 py-3 font-medium">Target</th>
+          <th class="px-2 py-3 font-medium">Detail</th>
+        </tr>
+      </thead>
       <tbody id="audit-rows">{% include 'partials/audit_rows.html' %}</tbody>
     </table>
   </div>
