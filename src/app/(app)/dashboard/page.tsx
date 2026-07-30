@@ -10,6 +10,7 @@ import { JobTable } from "@/components/molecules/JobTable";
 import { PrinterStatusCard } from "@/components/organisms/PrinterStatusCard";
 import { Select } from "@/components/atoms/Select";
 import { SubmitButton } from "@/components/molecules/SubmitButton";
+import { ActionForm } from "@/components/molecules/ActionForm";
 import { updatePrintModeAction } from "@/app/actions";
 
 export default async function UserDashboardPage() {
@@ -47,7 +48,11 @@ export default async function UserDashboardPage() {
             {user.printMode.toUpperCase()}
           </p>
           <UploadForm csrfToken={csrfToken} />
-          <form action={updatePrintModeAction} className="mt-4 flex items-end gap-2">
+          <ActionForm
+            action={updatePrintModeAction}
+            successMessage="Print mode updated."
+            className="mt-4 flex items-end gap-2"
+          >
             <input type="hidden" name="csrfToken" value={csrfToken} />
             <Select
               label="Print mode"
@@ -59,7 +64,7 @@ export default async function UserDashboardPage() {
               ]}
             />
             <SubmitButton variant="secondary">Save</SubmitButton>
-          </form>
+          </ActionForm>
         </section>
 
         <section className="rounded-lg border border-border bg-bg-panel/50 p-5">

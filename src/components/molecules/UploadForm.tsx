@@ -1,10 +1,18 @@
+"use client";
+
 import { Input } from "@/components/atoms/Input";
 import { SubmitButton } from "@/components/molecules/SubmitButton";
+import { ActionForm } from "@/components/molecules/ActionForm";
 import { uploadJobAction } from "@/app/actions";
 
 export function UploadForm({ csrfToken }: { csrfToken: string }) {
   return (
-    <form action={uploadJobAction} className="space-y-4">
+    <ActionForm
+      action={uploadJobAction}
+      successMessage="Print job submitted."
+      resetOnSuccess
+      className="space-y-4"
+    >
       <input type="hidden" name="csrfToken" value={csrfToken} />
       <label className="flex w-full flex-col gap-1.5 text-sm">
         <span className="text-text-muted">Document (PDF / PNG / JPG)</span>
@@ -18,6 +26,6 @@ export function UploadForm({ csrfToken }: { csrfToken: string }) {
       </label>
       <Input label="Copies" name="copies" type="number" min={1} max={100} defaultValue={1} />
       <SubmitButton className="w-full sm:w-auto">Submit print job</SubmitButton>
-    </form>
+    </ActionForm>
   );
 }

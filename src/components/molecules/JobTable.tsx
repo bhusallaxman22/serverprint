@@ -1,5 +1,8 @@
+"use client";
+
 import { StatusBadge } from "@/components/molecules/StatusBadge";
 import { SubmitButton } from "@/components/molecules/SubmitButton";
+import { ActionForm } from "@/components/molecules/ActionForm";
 import { cancelOwnJobAction, adminJobAction } from "@/app/actions";
 
 export type JobRow = {
@@ -62,25 +65,29 @@ export function JobTable({
               <td className="px-3 py-2.5">
                 <div className="flex flex-wrap gap-1.5">
                   {!admin && !["completed", "cancelled", "rejected"].includes(job.status) ? (
-                    <form action={cancelOwnJobAction}>
+                    <ActionForm action={cancelOwnJobAction} successMessage="Job cancelled.">
                       <input type="hidden" name="csrfToken" value={csrfToken} />
                       <input type="hidden" name="jobUuid" value={job.jobUuid} />
                       <SubmitButton variant="ghost" className="!px-2 !py-1 text-xs">
                         Cancel
                       </SubmitButton>
-                    </form>
+                    </ActionForm>
                   ) : null}
                   {admin && job.status === "pending" ? (
                     <>
-                      <form action={adminJobAction}>
+                      <ActionForm action={adminJobAction} successMessage="Job approved.">
                         <input type="hidden" name="csrfToken" value={csrfToken} />
                         <input type="hidden" name="jobUuid" value={job.jobUuid} />
                         <input type="hidden" name="action" value="approve" />
                         <SubmitButton variant="primary" className="!px-2 !py-1 text-xs">
                           Approve
                         </SubmitButton>
-                      </form>
-                      <form action={adminJobAction} className="flex gap-1">
+                      </ActionForm>
+                      <ActionForm
+                        action={adminJobAction}
+                        successMessage="Job rejected."
+                        className="flex gap-1"
+                      >
                         <input type="hidden" name="csrfToken" value={csrfToken} />
                         <input type="hidden" name="jobUuid" value={job.jobUuid} />
                         <input type="hidden" name="action" value="reject" />
@@ -94,28 +101,28 @@ export function JobTable({
                         <SubmitButton variant="danger" className="!px-2 !py-1 text-xs">
                           Reject
                         </SubmitButton>
-                      </form>
+                      </ActionForm>
                     </>
                   ) : null}
                   {admin && !["completed", "cancelled"].includes(job.status) ? (
-                    <form action={adminJobAction}>
+                    <ActionForm action={adminJobAction} successMessage="Job cancelled.">
                       <input type="hidden" name="csrfToken" value={csrfToken} />
                       <input type="hidden" name="jobUuid" value={job.jobUuid} />
                       <input type="hidden" name="action" value="cancel" />
                       <SubmitButton variant="ghost" className="!px-2 !py-1 text-xs">
                         Cancel
                       </SubmitButton>
-                    </form>
+                    </ActionForm>
                   ) : null}
                   {admin && job.status === "failed" ? (
-                    <form action={adminJobAction}>
+                    <ActionForm action={adminJobAction} successMessage="Job queued for retry.">
                       <input type="hidden" name="csrfToken" value={csrfToken} />
                       <input type="hidden" name="jobUuid" value={job.jobUuid} />
                       <input type="hidden" name="action" value="retry" />
                       <SubmitButton variant="secondary" className="!px-2 !py-1 text-xs">
                         Retry
                       </SubmitButton>
-                    </form>
+                    </ActionForm>
                   ) : null}
                 </div>
                 {job.failureReason ? (

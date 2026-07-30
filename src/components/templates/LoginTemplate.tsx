@@ -1,6 +1,9 @@
+"use client";
+
 import { Logo } from "@/components/atoms/Logo";
 import { Input } from "@/components/atoms/Input";
 import { SubmitButton } from "@/components/molecules/SubmitButton";
+import { ActionForm } from "@/components/molecules/ActionForm";
 import { loginAction } from "@/app/actions";
 
 export function LoginTemplate() {
@@ -20,7 +23,7 @@ export function LoginTemplate() {
         <p className="mt-1 text-sm text-text-muted">
           Session cookies only — no API keys in the browser.
         </p>
-        <form action={loginAction} className="mt-6 space-y-4">
+        <ActionForm action={loginAction} successMessage="Signed in." className="mt-6 space-y-4">
           <Input label="Username" name="username" autoComplete="username" required />
           <Input
             label="Password"
@@ -30,7 +33,7 @@ export function LoginTemplate() {
             required
           />
           <SubmitButton className="w-full">Continue</SubmitButton>
-        </form>
+        </ActionForm>
       </div>
     </div>
   );

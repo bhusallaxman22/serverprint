@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { DM_Sans, Fraunces } from "next/font/google";
+import { SnackbarProvider } from "@/components/organisms/SnackbarProvider";
 import "./globals.css";
 
 const sans = DM_Sans({
@@ -21,7 +22,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className="dark">
       <body className={`${sans.variable} ${display.variable} min-h-screen antialiased`}>
-        {children}
+        <SnackbarProvider>{children}</SnackbarProvider>
       </body>
     </html>
   );

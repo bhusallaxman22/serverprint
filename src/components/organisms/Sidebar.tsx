@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Logo } from "@/components/atoms/Logo";
 import { logoutAction } from "@/app/actions";
+import { ActionForm } from "@/components/molecules/ActionForm";
 import { SubmitButton } from "@/components/molecules/SubmitButton";
 
 type NavItem = { href: string; label: string };
@@ -102,12 +103,12 @@ export function Sidebar({
               {username} · {role}
             </p>
           ) : null}
-          <form action={logoutAction}>
+          <ActionForm action={logoutAction} successMessage="Signed out.">
             <input type="hidden" name="csrfToken" value={csrfToken} />
             <SubmitButton variant="ghost" className="w-full !justify-start">
               {collapsed ? "⎋" : "Sign out"}
             </SubmitButton>
-          </form>
+          </ActionForm>
         </div>
       </aside>
     </>
