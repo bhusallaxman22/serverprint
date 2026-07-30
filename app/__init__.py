@@ -1,1 +1,0 @@
-"""PrintDrop application package."""

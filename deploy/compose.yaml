@@ -11,40 +11,41 @@ services:
     env_file:
       - .env
     environment:
-      database_url: ${DATABASE_URL}
-      session_secret: ${SESSION_SECRET}
-      print_api_key: ${PRINT_API_KEY}
-      admin_username: ${ADMIN_USERNAME:-admin}
-      admin_password: ${ADMIN_PASSWORD}
-      printer_name: ${PRINTER_NAME}
-      cups_server: ${CUPS_SERVER:-cups}
-      web_port: "8000"
-      run_scheduler: ${RUN_SCHEDULER:-false}
+      DATABASE_URL: ${DATABASE_URL}
+      SESSION_SECRET: ${SESSION_SECRET}
+      PRINT_API_KEY: ${PRINT_API_KEY}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      PRINTER_NAME: ${PRINTER_NAME}
+      CUPS_SERVER: ${CUPS_SERVER:-cups}
+      PORT: "8000"
+      RUN_SCHEDULER: ${RUN_SCHEDULER:-false}
       TZ: ${TZ:-UTC}
-      force_password_change_default: ${FORCE_PASSWORD_CHANGE_DEFAULT:-true}
-      retain_successful_uploads: ${RETAIN_SUCCESSFUL_UPLOADS:-false}
-      print_status_poll_seconds: ${PRINT_STATUS_POLL_SECONDS:-30}
-      failed_file_retention_hours: ${FAILED_FILE_RETENTION_HOURS:-72}
-      pending_file_retention_days: ${PENDING_FILE_RETENTION_DAYS:-14}
-      max_upload_mb: ${MAX_UPLOAD_MB:-20}
-      secure_cookies: ${SECURE_COOKIES:-false}
-      login_rate_limit_per_minute: ${LOGIN_RATE_LIMIT_PER_MINUTE:-12}
-      upload_rate_limit_per_minute: ${UPLOAD_RATE_LIMIT_PER_MINUTE:-30}
-      uploads_root: /data/uploads
-      tmp_root: /data/tmp
-      environment: production
+      FORCE_PASSWORD_CHANGE_DEFAULT: ${FORCE_PASSWORD_CHANGE_DEFAULT:-true}
+      RETAIN_SUCCESSFUL_UPLOADS: ${RETAIN_SUCCESSFUL_UPLOADS:-false}
+      PRINT_STATUS_POLL_SECONDS: ${PRINT_STATUS_POLL_SECONDS:-30}
+      FAILED_FILE_RETENTION_HOURS: ${FAILED_FILE_RETENTION_HOURS:-72}
+      PENDING_FILE_RETENTION_DAYS: ${PENDING_FILE_RETENTION_DAYS:-14}
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-20}
+      # false for direct HTTP (:8000). Set true only when the browser reaches PrintDrop over HTTPS.
+      SECURE_COOKIES: ${SECURE_COOKIES:-false}
+      LOGIN_RATE_LIMIT_PER_MINUTE: ${LOGIN_RATE_LIMIT_PER_MINUTE:-12}
+      UPLOAD_RATE_LIMIT_PER_MINUTE: ${UPLOAD_RATE_LIMIT_PER_MINUTE:-30}
+      UPLOADS_ROOT: /data/uploads
+      TMP_ROOT: /data/tmp
+      NODE_ENV: production
     volumes:
       - printdrop_data:/data
     extra_hosts:
       - "host.docker.internal:host-gateway"
     healthcheck:
-      test: ["CMD", "python", "-c", "import os,sys,urllib.request; urllib.request.urlopen(f'http://127.0.0.1:{os.getenv(\"web_port\", \"8000\")}/healthz', timeout=3); sys.exit(0)"]
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/healthz"]
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 30s
+      start_period: 40s
 
-  # Optional dedicated scheduler process. Enable with:
+  # Optional dedicated scheduler/worker process. Enable with:
   # docker compose --profile worker up -d
   printdrop-worker:
     image: ${PRINTDROP_IMAGE:-ghcr.io/OWNER/printdrop:latest}
@@ -57,20 +58,19 @@ services:
     env_file:
       - .env
     environment:
-      database_url: ${DATABASE_URL}
-      session_secret: ${SESSION_SECRET}
-      print_api_key: ${PRINT_API_KEY}
-      admin_username: ${ADMIN_USERNAME:-admin}
-      admin_password: ${ADMIN_PASSWORD}
-      printer_name: ${PRINTER_NAME}
-      cups_server: ${CUPS_SERVER:-cups}
-      run_scheduler: "true"
-      web_port: "8000"
+      DATABASE_URL: ${DATABASE_URL}
+      SESSION_SECRET: ${SESSION_SECRET}
+      PRINT_API_KEY: ${PRINT_API_KEY}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      PRINTER_NAME: ${PRINTER_NAME}
+      CUPS_SERVER: ${CUPS_SERVER:-cups}
+      RUN_SCHEDULER: "true"
+      RUN_AS_WORKER: "true"
       TZ: ${TZ:-UTC}
-    command:
-      - sh
-      - -c
-      - "${PRINTDROP_WORKER_COMMAND:-python -m app.worker}"
+      UPLOADS_ROOT: /data/uploads
+      TMP_ROOT: /data/tmp
+      NODE_ENV: production
     volumes:
       - printdrop_data:/data
     extra_hosts:

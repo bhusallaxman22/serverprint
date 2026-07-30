@@ -1,48 +1,63 @@
-FROM python:3.12-slim AS runtime
+# syntax=docker/dockerfile:1
 
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    APP_MODULE=app.main:app \
-    WEB_CONCURRENCY=2 \
-    GUNICORN_BIND=0.0.0.0:8000 \
-    GUNICORN_TIMEOUT=120 \
-    GUNICORN_GRACEFUL_TIMEOUT=30 \
-    GUNICORN_KEEPALIVE=5 \
-    GUNICORN_MAX_REQUESTS=1000 \
-    GUNICORN_MAX_REQUESTS_JITTER=100
+FROM node:22-bookworm-slim AS deps
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci
 
+FROM node:22-bookworm-slim AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV DATABASE_URL="file:./prisma/build.db"
+RUN node scripts/prepare-prisma-provider.js \
+  && npx prisma generate \
+  && npm run build \
+  && npm prune --omit=dev
+
+FROM node:22-bookworm-slim AS runner
 WORKDIR /app
 
+ENV NODE_ENV=production \
+    NEXT_TELEMETRY_DISABLED=1 \
+    PORT=8000 \
+    HOSTNAME=0.0.0.0
+
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-        ca-certificates \
-        cups-client \
-        curl \
-        file \
-        libmagic1 \
-        tini \
-    && rm -rf /var/lib/apt/lists/* \
-    && groupadd --system --gid 10001 printdrop \
-    && useradd --system --uid 10001 --gid 10001 --home-dir /app --shell /usr/sbin/nologin printdrop \
-    && mkdir -p /app /data/uploads /data/tmp \
-    && chown -R printdrop:printdrop /app /data
+  && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    cups-client \
+    curl \
+    tini \
+  && rm -rf /var/lib/apt/lists/* \
+  && groupadd --system --gid 10001 printdrop \
+  && useradd --system --uid 10001 --gid 10001 --home-dir /app --shell /usr/sbin/nologin printdrop \
+  && mkdir -p /app /data/uploads /data/tmp \
+  && chown -R printdrop:printdrop /app /data
 
-COPY pyproject.toml /app/pyproject.toml
-COPY README.md /app/README.md
-COPY app /app/app
-RUN python -m pip install --upgrade pip setuptools wheel \
-    && python -m pip install . \
-    && python -m pip uninstall -y pip setuptools wheel \
-    && rm -rf /root/.cache/pip
+COPY --from=builder --chown=printdrop:printdrop /app/package.json /app/package-lock.json ./
+COPY --from=builder --chown=printdrop:printdrop /app/node_modules ./node_modules
+COPY --from=builder --chown=printdrop:printdrop /app/.next ./.next
+COPY --from=builder --chown=printdrop:printdrop /app/public ./public
+COPY --from=builder --chown=printdrop:printdrop /app/prisma ./prisma
+COPY --from=builder --chown=printdrop:printdrop /app/scripts ./scripts
+COPY --from=builder --chown=printdrop:printdrop /app/next.config.ts ./next.config.ts
+COPY --from=builder --chown=printdrop:printdrop /app/tsconfig.json ./tsconfig.json
+COPY --from=builder --chown=printdrop:printdrop /app/src/lib ./src/lib
+COPY --from=builder --chown=printdrop:printdrop /app/src/instrumentation.ts ./src/instrumentation.ts
 
+# tsx is needed for the optional worker entrypoint
+USER root
+RUN npm install --no-save tsx prisma@6.19.0 \
+  && chown -R printdrop:printdrop /app \
+  && chmod +x /app/scripts/docker-entrypoint.sh
 USER printdrop
 
 EXPOSE 8000
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-  CMD python -c "import os,sys,urllib.request; u=f'http://127.0.0.1:{os.getenv(\"web_port\", \"8000\")}/healthz'; urllib.request.urlopen(u, timeout=3); sys.exit(0)"
+HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
+  CMD curl -fsS "http://127.0.0.1:${PORT:-8000}/healthz" || exit 1
 
 ENTRYPOINT ["tini", "--"]
-CMD ["sh", "-c", "exec gunicorn \"$APP_MODULE\" -k uvicorn.workers.UvicornWorker --bind \"$GUNICORN_BIND\" --workers \"$WEB_CONCURRENCY\" --timeout \"$GUNICORN_TIMEOUT\" --graceful-timeout \"$GUNICORN_GRACEFUL_TIMEOUT\" --keep-alive \"$GUNICORN_KEEPALIVE\" --max-requests \"$GUNICORN_MAX_REQUESTS\" --max-requests-jitter \"$GUNICORN_MAX_REQUESTS_JITTER\""]
+CMD ["/app/scripts/docker-entrypoint.sh"]

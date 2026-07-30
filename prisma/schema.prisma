@@ -1,0 +1,108 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  admin
+  user
+}
+
+enum PrintMode {
+  color
+  bw
+}
+
+enum PrintJobStatus {
+  pending
+  approved
+  queued
+  printing
+  completed
+  failed
+  rejected
+  cancelled
+}
+
+model User {
+  id                   Int       @id @default(autoincrement())
+  username             String    @unique
+  usernameNormalized   String    @unique @map("username_normalized")
+  passwordHash         String    @map("password_hash")
+  role                 UserRole  @default(user)
+  isActive             Boolean   @default(true) @map("is_active")
+  mustChangePassword   Boolean   @default(false) @map("must_change_password")
+  dailyPageQuota       Int       @default(250) @map("daily_page_quota")
+  weeklyPageQuota      Int       @default(1000) @map("weekly_page_quota")
+  requiresApproval     Boolean   @default(true) @map("requires_approval")
+  printMode            PrintMode @default(bw) @map("print_mode")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+
+  printJobs            PrintJob[] @relation("UserJobs")
+  approvedJobs         PrintJob[] @relation("ApprovedBy")
+  rejectedJobs         PrintJob[] @relation("RejectedBy")
+  retriedJobs          PrintJob[] @relation("RetriedBy")
+  auditLogs            AuditLog[]
+
+  @@index([role])
+  @@index([isActive])
+  @@map("users")
+}
+
+model PrintJob {
+  id                 Int            @id @default(autoincrement())
+  jobUuid            String         @unique @default(uuid()) @map("job_uuid")
+  userId             Int            @map("user_id")
+  originalFilename   String         @map("original_filename")
+  storedFilename     String         @map("stored_filename")
+  mimeType           String         @map("mime_type")
+  extension          String
+  pageCount          Int            @map("page_count")
+  copies             Int            @default(1)
+  status             PrintJobStatus @default(pending)
+  cupsJobId          String?        @map("cups_job_id")
+  submittedAt        DateTime       @default(now()) @map("submitted_at")
+  updatedAt          DateTime       @updatedAt @map("updated_at")
+  approvedAt         DateTime?      @map("approved_at")
+  approvedByUserId   Int?           @map("approved_by_user_id")
+  rejectedAt         DateTime?      @map("rejected_at")
+  rejectedByUserId   Int?           @map("rejected_by_user_id")
+  failureReason      String?        @map("failure_reason")
+  retryCount         Int            @default(0) @map("retry_count")
+  retriedAt          DateTime?      @map("retried_at")
+  retriedByUserId    Int?           @map("retried_by_user_id")
+
+  user               User           @relation("UserJobs", fields: [userId], references: [id])
+  approvedBy         User?          @relation("ApprovedBy", fields: [approvedByUserId], references: [id])
+  rejectedBy         User?          @relation("RejectedBy", fields: [rejectedByUserId], references: [id])
+  retriedBy          User?          @relation("RetriedBy", fields: [retriedByUserId], references: [id])
+
+  @@index([status])
+  @@index([userId, submittedAt])
+  @@index([status, submittedAt])
+  @@index([cupsJobId])
+  @@map("print_jobs")
+}
+
+model AuditLog {
+  id          Int      @id @default(autoincrement())
+  actorUserId Int?     @map("actor_user_id")
+  action      String
+  targetType  String   @map("target_type")
+  targetId    String?  @map("target_id")
+  details     String   @default("{}")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  actor       User?    @relation(fields: [actorUserId], references: [id])
+
+  @@index([action])
+  @@index([targetType, targetId])
+  @@index([actorUserId, createdAt])
+  @@index([createdAt])
+  @@map("audit_logs")
+}

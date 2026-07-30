@@ -31,10 +31,12 @@ Please avoid public disclosure until a fix or mitigation is available and mainta
 ## Hardening Recommendations
 
 - Run behind HTTPS reverse proxy
-- Set `SECURE_COOKIES=true`
+- Set `SECURE_COOKIES=true` only when the browser reaches PrintDrop over HTTPS
+- Keep `SECURE_COOKIES=false` for plain HTTP Dockge (`:8000`) — secure cookies are dropped on HTTP and break login
 - Use strong random values for `SESSION_SECRET` and `PRINT_API_KEY`
+- Never put `PRINT_API_KEY` in browser JavaScript
 - Restrict inbound access to trusted networks
-- Keep dependencies and base image patched
+- Keep Node.js dependencies and the base image patched
 
 ## Container Image Scanning
 
