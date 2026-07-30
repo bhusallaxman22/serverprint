@@ -1,0 +1,32 @@
+{% for member in users %}
+<tr>
+  <td>{{ member.username }}<br /><small>id: {{ member.id }}</small></td>
+  <td><span class="badge {{ member.role.value }}">{{ member.role.value|title }}</span></td>
+  <td>daily {{ member.daily_page_quota }}<br /><small>weekly {{ member.weekly_page_quota }}</small></td>
+  <td>
+    <span class="badge {% if member.is_active %}completed{% else %}failed{% endif %}">{% if member.is_active %}Active{% else %}Inactive{% endif %}</span>
+    {% if member.must_change_password %}<br /><small class="muted">Password reset required</small>{% endif %}
+    <br /><small class="muted">{% if member.requires_approval %}Manual approval{% else %}Automatic print{% endif %}</small>
+  </td>
+  <td>
+    <form class="stack-form" hx-post="/ui/admin/users/{{ member.id }}/update" hx-target="#admin-user-rows" hx-swap="innerHTML" onsubmit="return confirm('Apply user updates?')">
+      <input type="hidden" name="search" value="{{ search_query }}" />
+      <input type="hidden" name="role_filter" value="{{ role_filter }}" />
+      <input type="hidden" name="show_inactive" value="{{ 'true' if show_inactive else 'false' }}" />
+      <select name="role">
+        <option value="admin" {% if member.role.value == 'admin' %}selected{% endif %}>Admin</option>
+        <option value="user" {% if member.role.value == 'user' %}selected{% endif %}>User</option>
+      </select>
+      <label class="inline-check"><input type="checkbox" name="is_active" value="true" {% if member.is_active %}checked{% endif %}/>Active</label>
+      <label class="inline-check"><input type="checkbox" name="requires_approval" value="true" {% if member.requires_approval %}checked{% endif %}/>Require admin approval</label>
+      <input type="number" name="daily_page_quota" value="{{ member.daily_page_quota }}" min="1" />
+      <input type="number" name="weekly_page_quota" value="{{ member.weekly_page_quota }}" min="1" />
+      <label class="inline-check"><input type="checkbox" name="reset_password" value="true" />Reset password</label>
+      <input type="password" name="temp_password" placeholder="Temporary password" minlength="8" />
+      <button class="button xs" type="submit">Save</button>
+    </form>
+  </td>
+</tr>
+{% else %}
+<tr><td colspan="5" class="muted">No users found.</td></tr>
+{% endfor %}

@@ -1,0 +1,11 @@
+{% for row in rows %}
+<tr>
+  <td>{{ row.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+  <td>{{ row.actor }}</td>
+  <td><span class="badge approved">{{ row.action }}</span></td>
+  <td>{{ row.target }}</td>
+  <td>{{ row.detail }}</td>
+</tr>
+{% else %}
+<tr><td colspan="5" class="muted">No audit entries match the filters.</td></tr>
+{% endfor %}

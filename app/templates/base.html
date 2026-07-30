@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en" x-data="printdropUI()" :class="{ 'sidebar-open': sidebarOpen }">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ app_name }}{% block title %}{% endblock %}</title>
+    <link rel="stylesheet" href="/static/css/app.css" />
+    <script defer src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script defer src="/static/js/app.js"></script>
+  </head>
+  <body>
+    {% if user %}
+    <aside class="sidebar" :class="{ 'is-open': sidebarOpen }" aria-label="Primary">
+      <div class="sidebar-header">
+        <h1>{{ app_name }}</h1>
+        <p>Print workflow console</p>
+      </div>
+      <nav class="nav-links">
+        {% if user.role == 'user' %}
+        <a href="/ui/dashboard" class="nav-link {% if nav_key == 'dashboard' %}active{% endif %}">Dashboard</a>
+        {% else %}
+        <a href="/ui/admin/dashboard" class="nav-link {% if nav_key == 'admin-dashboard' %}active{% endif %}">Admin dashboard</a>
+        <a href="/ui/admin/users" class="nav-link {% if nav_key == 'users' %}active{% endif %}">User administration</a>
+        <a href="/ui/admin/jobs" class="nav-link {% if nav_key == 'jobs' %}active{% endif %}">Print-job administration</a>
+        <a href="/ui/admin/audit" class="nav-link {% if nav_key == 'audit' %}active{% endif %}">Audit log</a>
+        {% endif %}
+      </nav>
+      <form action="/logout" method="post" class="sidebar-logout">
+        <button type="submit" class="button ghost w-full">Sign out</button>
+      </form>
+    </aside>
+    {% endif %}
+
+    <main class="layout-main {% if not user %}auth-layout{% endif %}">
+      {% if user %}
+      <header class="topbar">
+        <button class="button icon" type="button" @click="sidebarOpen = !sidebarOpen" aria-label="Toggle navigation">
+          ☰
+        </button>
+        <div>
+          <p class="topbar-user">{{ user.full_name }}</p>
+          <p class="topbar-role">{{ user.role|title }}</p>
+        </div>
+        <div class="topbar-status" hx-get="/ui/printer/status" hx-trigger="load, every {{ ui_settings.print_status_poll_seconds }}s" hx-swap="outerHTML">
+          {% include 'partials/printer_status_card.html' %}
+        </div>
+      </header>
+      {% endif %}
+
+      <section class="content-shell">
+        {% block content %}{% endblock %}
+      </section>
+    </main>
+
+    <div class="toast-region" aria-live="polite" aria-atomic="true">
+      {% for flash in flashes %}
+      <div class="toast {{ flash.level }}" x-data="{visible:true}" x-show="visible" x-init="setTimeout(() => visible = false, 4200)">
+        <p>{{ flash.message }}</p>
+      </div>
+      {% endfor %}
+    </div>
+
+    <dialog class="confirm-dialog" x-ref="confirmDialog" @close="resetConfirm()">
+      <form method="dialog" class="dialog-card">
+        <h3 x-text="confirmTitle"></h3>
+        <p x-text="confirmMessage"></p>
+        <div class="dialog-actions">
+          <button class="button ghost" value="cancel">Cancel</button>
+          <button class="button danger" value="confirm" @click.prevent="confirmAction()">Confirm</button>
+        </div>
+      </form>
+    </dialog>
+  </body>
+</html>

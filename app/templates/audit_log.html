@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %} · Audit Log{% endblock %}
+{% block content %}
+<section class="card">
+  <h2>Audit log</h2>
+  <form class="filters" hx-get="/ui/admin/audit/list" hx-target="#audit-rows" hx-swap="innerHTML" hx-trigger="change from:input, keyup changed delay:350ms from:input">
+    <input type="search" name="actor" value="{{ actor_filter }}" placeholder="Actor" aria-label="Actor filter" />
+    <input type="search" name="action" value="{{ action_filter }}" placeholder="Action" aria-label="Action filter" />
+    <input type="search" name="query" value="{{ search_query }}" placeholder="Target" aria-label="Search details" />
+  </form>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>When</th><th>Actor</th><th>Action</th><th>Target</th><th>Detail</th></tr></thead>
+      <tbody id="audit-rows">{% include 'partials/audit_rows.html' %}</tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

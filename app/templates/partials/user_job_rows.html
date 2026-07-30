@@ -1,0 +1,10 @@
+{% for job in jobs %}
+<tr>
+  <td>{{ job.job_uuid }}</td>
+  <td>{{ job.document_name }}</td>
+  <td><span class="badge {{ job.status.value }}">{{ job.status.value|title }}</span></td>
+  <td>{{ job.requested_at.strftime('%Y-%m-%d %H:%M') }}</td>
+</tr>
+{% else %}
+<tr><td colspan="4" class="muted">No jobs match the filter.</td></tr>
+{% endfor %}

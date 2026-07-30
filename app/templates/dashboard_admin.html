@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %} · Admin Dashboard{% endblock %}
+{% block content %}
+<section class="cards-grid">
+  <article class="card"><h3>Pending approvals</h3><p class="metric">{{ summary.pending_approval }}</p></article>
+  <article class="card"><h3>Active users</h3><p class="metric">{{ summary.active_users }}</p></article>
+  <article class="card"><h3>Failed today</h3><p class="metric">{{ summary.failed_today }}</p></article>
+  <article class="card"><h3>Jobs today</h3><p class="metric">{{ summary.jobs_today }}</p></article>
+</section>
+
+<section class="panel split">
+  <article class="card">
+    <h3>Pending approvals</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Job</th><th>User</th><th>Pages</th><th>Requested</th><th>Action</th></tr></thead>
+        <tbody>
+          {% for job in pending_jobs %}
+          <tr>
+            <td>{{ job.job_uuid }}</td>
+            <td>{{ job.owner_username }}</td>
+            <td>{{ job.pages }} x {{ job.copies }}</td>
+            <td>{{ job.requested_at.strftime('%Y-%m-%d %H:%M') }}</td>
+            <td><a class="button xs" href="/ui/admin/jobs">Review</a></td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5" class="muted">No pending approvals.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </article>
+
+  <article class="card">
+    <h3>Recent audit entries</h3>
+    <ul class="audit-list">
+      {% for row in recent_audits %}
+      <li><strong>{{ row.action }}</strong> by {{ row.actor }} on {{ row.target }}<br /><small>{{ row.created_at.strftime('%Y-%m-%d %H:%M') }} · {{ row.detail }}</small></li>
+      {% else %}
+      <li class="muted">No audit entries available.</li>
+      {% endfor %}
+    </ul>
+  </article>
+</section>
+{% endblock %}

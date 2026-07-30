@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %} · Dashboard{% endblock %}
+{% block content %}
+<section class="cards-grid">
+  <article class="card"><h3>Queued</h3><p class="metric">{{ summary.queued }}</p></article>
+  <article class="card"><h3>Printed</h3><p class="metric">{{ summary.printed }}</p></article>
+  <article class="card"><h3>Failed</h3><p class="metric">{{ summary.failed }}</p></article>
+  <article class="card">
+    <h3>Daily quota</h3>
+    <p class="metric">{{ quota.used }}/{{ quota.total }}</p>
+    <div class="progress"><span style="width: {{ ((quota.used / (quota.total or 1)) * 100)|round(0, 'ceil') }}%"></span></div>
+  </article>
+</section>
+
+<section class="panel split">
+  <article class="card">
+    <h3>Upload print job</h3>
+    <form class="stack-form" hx-post="/ui/dashboard/upload" hx-target="#user-job-rows" hx-swap="innerHTML" enctype="multipart/form-data">
+      <label class="dropzone" @dragover.prevent @drop.prevent="$refs.fileInput.files = $event.dataTransfer.files">
+        <input x-ref="fileInput" type="file" name="file" required accept=".pdf,.png,.jpg,.jpeg" />
+        <span>Drop files here or click to browse</span>
+        <small>Max {{ ui_settings.max_upload_mb }}MB</small>
+      </label>
+      <label>Copies <input type="number" name="copies" min="1" max="15" value="1" required /></label>
+      <button class="button primary" type="submit">Queue job</button>
+    </form>
+  </article>
+
+  <article class="card">
+    <h3>Recent jobs</h3>
+    <label class="inline-label">Filter
+      <select name="status" hx-get="/ui/dashboard/jobs" hx-target="#user-job-rows" hx-swap="innerHTML">
+        <option value="all">All statuses</option>
+        <option value="pending">Pending</option>
+        <option value="approved">Approved</option>
+        <option value="queued">Queued</option>
+        <option value="printing">Printing</option>
+        <option value="completed">Completed</option>
+        <option value="failed">Failed</option>
+        <option value="rejected">Rejected</option>
+        <option value="cancelled">Cancelled</option>
+      </select>
+    </label>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Job</th><th>Document</th><th>Status</th><th>Submitted</th></tr></thead>
+        <tbody id="user-job-rows">{% include 'partials/user_job_rows.html' %}</tbody>
+      </table>
+    </div>
+  </article>
+</section>
+{% endblock %}

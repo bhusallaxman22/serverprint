@@ -1,0 +1,99 @@
+services:
+  printdrop:
+    image: ${PRINTDROP_IMAGE:-ghcr.io/OWNER/printdrop:latest}
+    container_name: printdrop
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "${PRINTDROP_PORT:-8000}:8000"
+    env_file:
+      - .env
+    environment:
+      database_url: ${DATABASE_URL}
+      session_secret: ${SESSION_SECRET}
+      print_api_key: ${PRINT_API_KEY}
+      admin_username: ${ADMIN_USERNAME:-admin}
+      admin_password: ${ADMIN_PASSWORD}
+      printer_name: ${PRINTER_NAME}
+      cups_server: ${CUPS_SERVER:-cups}
+      web_port: "8000"
+      run_scheduler: ${RUN_SCHEDULER:-false}
+      TZ: ${TZ:-UTC}
+      force_password_change_default: ${FORCE_PASSWORD_CHANGE_DEFAULT:-true}
+      retain_successful_uploads: ${RETAIN_SUCCESSFUL_UPLOADS:-false}
+      print_status_poll_seconds: ${PRINT_STATUS_POLL_SECONDS:-30}
+      failed_file_retention_hours: ${FAILED_FILE_RETENTION_HOURS:-72}
+      pending_file_retention_days: ${PENDING_FILE_RETENTION_DAYS:-14}
+      max_upload_mb: ${MAX_UPLOAD_MB:-20}
+      secure_cookies: ${SECURE_COOKIES:-false}
+      login_rate_limit_per_minute: ${LOGIN_RATE_LIMIT_PER_MINUTE:-12}
+      upload_rate_limit_per_minute: ${UPLOAD_RATE_LIMIT_PER_MINUTE:-30}
+      uploads_root: /data/uploads
+      tmp_root: /data/tmp
+      environment: production
+    volumes:
+      - printdrop_data:/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os,sys,urllib.request; urllib.request.urlopen(f'http://127.0.0.1:{os.getenv(\"web_port\", \"8000\")}/healthz', timeout=3); sys.exit(0)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  # Optional dedicated scheduler process. Enable with:
+  # docker compose --profile worker up -d
+  printdrop-worker:
+    image: ${PRINTDROP_IMAGE:-ghcr.io/OWNER/printdrop:latest}
+    container_name: printdrop-worker
+    restart: unless-stopped
+    profiles: ["worker"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      database_url: ${DATABASE_URL}
+      session_secret: ${SESSION_SECRET}
+      print_api_key: ${PRINT_API_KEY}
+      admin_username: ${ADMIN_USERNAME:-admin}
+      admin_password: ${ADMIN_PASSWORD}
+      printer_name: ${PRINTER_NAME}
+      cups_server: ${CUPS_SERVER:-cups}
+      run_scheduler: "true"
+      web_port: "8000"
+      TZ: ${TZ:-UTC}
+    command:
+      - sh
+      - -c
+      - "${PRINTDROP_WORKER_COMMAND:-python -m app.worker}"
+    volumes:
+      - printdrop_data:/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  postgres:
+    image: postgres:16
+    container_name: printdrop-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-printdrop}
+      POSTGRES_USER: ${POSTGRES_USER:-printdrop}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      TZ: ${TZ:-UTC}
+    volumes:
+      - printdrop_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-printdrop} -d ${POSTGRES_DB:-printdrop}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+volumes:
+  printdrop_data:
+  printdrop_postgres:

@@ -1,0 +1,7 @@
+<div class="status-card">
+  <span class="status-dot {{ printer.health }}"></span>
+  <div>
+    <p>{{ printer.name }}</p>
+    <small>{{ printer.health|title }} · Queue {{ printer.queue_depth }} jobs</small>
+  </div>
+</div>
