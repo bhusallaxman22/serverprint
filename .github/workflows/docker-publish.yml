@@ -120,7 +120,7 @@ jobs:
       # Trivy does not currently publish a stable v1 major tag.
       # Pinned to the latest tested v0 release series.
       - name: Trivy image scan (fail on HIGH/CRITICAL)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
           format: sarif
