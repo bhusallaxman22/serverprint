@@ -33,7 +33,9 @@ COPY pyproject.toml /app/pyproject.toml
 COPY README.md /app/README.md
 COPY app /app/app
 RUN python -m pip install --upgrade pip setuptools wheel \
-    && python -m pip install .
+    && python -m pip install . \
+    && python -m pip uninstall -y pip setuptools wheel \
+    && rm -rf /root/.cache/pip
 
 USER printdrop
 

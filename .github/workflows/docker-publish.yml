@@ -54,6 +54,8 @@ jobs:
           context: .
           push: false
           platforms: linux/amd64
+          # Avoid BuildKit Syft SBOM attestations; Trivy scans the image filesystem directly.
+          sbom: false
           cache-from: type=gha
           cache-to: type=gha,mode=max
           tags: local/printdrop:ci
@@ -101,25 +103,20 @@ jobs:
           platforms: linux/amd64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          # BuildKit's default Syft SBOM attestation makes Trivy warn about
+          # third-party SBOMs and can produce inaccurate/false findings.
+          # We generate an SBOM with Trivy after the vulnerability scan instead.
+          sbom: false
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Generate SBOM
-        uses: anchore/sbom-action@v0
-        with:
-          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
-          format: spdx-json
-          output-file: sbom.spdx.json
-
-      - name: Upload SBOM artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: sbom-spdx
-          path: sbom.spdx.json
-
       # Trivy does not currently publish a stable v1 major tag.
       # Pinned to the latest tested v0 release series.
-      - name: Trivy image scan (fail on HIGH/CRITICAL)
+      #
+      # Policy: fail the job on fixable HIGH/CRITICAL OS + library vulns.
+      # ignore-unfixed skips vulns with no upstream fix yet (common for Debian).
+      # See SECURITY.md for the container scanning policy.
+      - name: Trivy image scan (SARIF)
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
@@ -128,9 +125,35 @@ jobs:
           severity: HIGH,CRITICAL
           ignore-unfixed: true
           vuln-type: os,library
-          exit-code: "1"
+          exit-code: "0"
 
       - name: Upload Trivy results to code scanning
+        if: always() && hashFiles('trivy-results.sarif') != ''
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: trivy-results.sarif
+        continue-on-error: true
+
+      - name: Trivy image scan (fail on HIGH/CRITICAL)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
+          format: table
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          vuln-type: os,library
+          exit-code: "1"
+
+      - name: Generate SBOM with Trivy
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
+          format: spdx-json
+          output: sbom.spdx.json
+          exit-code: "0"
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-spdx
+          path: sbom.spdx.json

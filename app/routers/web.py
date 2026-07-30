@@ -122,7 +122,7 @@ def login_page(
         return RedirectResponse("/ui/dashboard", status_code=303)
     except HTTPException:
         context = _base_context(request, settings, user=None)
-        return templates.TemplateResponse("login.html", context)
+        return templates.TemplateResponse(request, "login.html", context)
 
 
 @router.post("/login")
@@ -213,7 +213,7 @@ def user_dashboard(
             },
         }
     )
-    return templates.TemplateResponse("dashboard_user.html", context)
+    return templates.TemplateResponse(request, "dashboard_user.html", context)
 
 
 @router.get("/ui/dashboard/jobs", response_class=HTMLResponse)
@@ -231,6 +231,7 @@ def user_jobs_partial(
         stmt = stmt.where(PrintJob.status == PrintJobStatus(status))
     jobs = list(db.execute(stmt.order_by(PrintJob.submitted_at.desc())).scalars())
     return templates.TemplateResponse(
+        request,
         "partials/user_job_rows.html",
         {"request": request, "jobs": [_map_job(job, current_user.username) for job in jobs]},
     )
@@ -275,6 +276,7 @@ async def upload_job(
             ).scalars()
         )
         return templates.TemplateResponse(
+            request,
             "partials/user_job_rows.html",
             {"request": request, "jobs": [_map_job(job, current_user.username) for job in jobs]},
         )
@@ -323,6 +325,7 @@ async def upload_job(
         ).scalars()
     )
     return templates.TemplateResponse(
+        request,
         "partials/user_job_rows.html",
         {"request": request, "jobs": [_map_job(job, current_user.username) for job in jobs]},
     )
@@ -392,7 +395,7 @@ def admin_dashboard(
             ],
         }
     )
-    return templates.TemplateResponse("dashboard_admin.html", context)
+    return templates.TemplateResponse(request, "dashboard_admin.html", context)
 
 
 @router.get("/ui/admin/users", response_class=HTMLResponse)
@@ -413,7 +416,7 @@ def users_admin_page(
             "search_query": "",
         }
     )
-    return templates.TemplateResponse("admin_users.html", context)
+    return templates.TemplateResponse(request, "admin_users.html", context)
 
 
 @router.get("/ui/admin/users/list", response_class=HTMLResponse)
@@ -435,6 +438,7 @@ def users_partial(
         stmt = stmt.where(User.is_active.is_(True))
     users = list(db.execute(stmt.order_by(User.created_at.asc())).scalars())
     return templates.TemplateResponse(
+        request,
         "partials/admin_user_rows.html",
         {
             "request": request,
@@ -535,7 +539,7 @@ def jobs_admin_page(
             "status_options": ["all"] + [state.value for state in PrintJobStatus],
         }
     )
-    return templates.TemplateResponse("admin_jobs.html", context)
+    return templates.TemplateResponse(request, "admin_jobs.html", context)
 
 
 @router.get("/ui/admin/jobs/list", response_class=HTMLResponse)
@@ -559,6 +563,7 @@ def jobs_partial(
     rows = db.execute(stmt.order_by(PrintJob.submitted_at.desc())).all()
     jobs = [_map_job(job, username) for job, username in rows]
     return templates.TemplateResponse(
+        request,
         "partials/admin_job_rows.html",
         {
             "request": request,
@@ -650,7 +655,7 @@ def audit_page(
             "search_query": "",
         }
     )
-    return templates.TemplateResponse("audit_log.html", context)
+    return templates.TemplateResponse(request, "audit_log.html", context)
 
 
 @router.get("/ui/admin/audit/list", response_class=HTMLResponse)
@@ -683,6 +688,7 @@ def audit_partial(
         for audit, username in rows
     ]
     return templates.TemplateResponse(
+        request,
         "partials/audit_rows.html",
         {
             "request": request,
@@ -701,6 +707,7 @@ def printer_status_partial(
     _: User = Depends(get_current_user),
 ) -> HTMLResponse:
     return templates.TemplateResponse(
+        request,
         "partials/printer_status_card.html",
         {"request": request, "printer": _printer_payload(settings)},
     )
