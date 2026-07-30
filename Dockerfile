@@ -2,8 +2,11 @@
 
 FROM node:22-bookworm-slim AS deps
 WORKDIR /app
+# package.json postinstall runs `prisma generate`, which needs prisma/schema.prisma.
+# That schema is not available in this layer (and must be prepared later for provider),
+# so install with --ignore-scripts; builder runs prisma generate explicitly.
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm ci --ignore-scripts
 
 FROM node:22-bookworm-slim AS builder
 WORKDIR /app
