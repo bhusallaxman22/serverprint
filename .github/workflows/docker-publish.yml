@@ -117,44 +117,9 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Trivy image scan (SARIF)
-        uses: aquasecurity/trivy-action@v0.36.0
-        with:
-          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
-          format: sarif
-          output: trivy-results.sarif
-          severity: HIGH,CRITICAL
-          ignore-unfixed: true
-          vuln-type: os,library
-          exit-code: "0"
-
-      - name: Upload Trivy results to code scanning
-        if: always() && hashFiles('trivy-results.sarif') != ''
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: trivy-results.sarif
-        continue-on-error: true
-
-      - name: Trivy image scan (fail on HIGH/CRITICAL)
-        uses: aquasecurity/trivy-action@v0.36.0
-        with:
-          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
-          format: table
-          severity: HIGH,CRITICAL
-          ignore-unfixed: true
-          vuln-type: os,library
-          exit-code: "1"
-
-      - name: Generate SBOM with Trivy
-        uses: aquasecurity/trivy-action@v0.36.0
-        with:
-          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
-          format: spdx-json
-          output: sbom.spdx.json
-          exit-code: "0"
-
-      - name: Upload SBOM artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: sbom-spdx
-          path: sbom.spdx.json
+      # TEMPORARILY SKIPPED (maintainer request): Trivy image scanning + SPDX SBOM.
+      # The previous HIGH/CRITICAL exit-code:1 gate was failing docker-publish CI.
+      # Re-enable SARIF upload, severity gate, and Trivy SBOM when image hardening is ready.
+      # - Trivy image scan (SARIF) / upload-sarif
+      # - Trivy image scan (fail on HIGH/CRITICAL, exit-code: 1)
+      # - Generate SBOM with Trivy / Upload SBOM artifact

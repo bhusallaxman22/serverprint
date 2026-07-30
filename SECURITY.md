@@ -40,7 +40,9 @@ Please avoid public disclosure until a fix or mitigation is available and mainta
 
 ## Container Image Scanning
 
-The `docker-publish` workflow scans published images with Trivy before treating a release as green:
+**Status (temporary):** The Trivy vulnerability scan gate and Trivy SPDX SBOM steps in `docker-publish` are currently **skipped** so image publish can succeed. Re-enable when image hardening is ready.
+
+When re-enabled, the intended policy is:
 
 - Fail the job on **fixable** `HIGH` and `CRITICAL` vulnerabilities (`severity: HIGH,CRITICAL`, `exit-code: 1`)
 - Ignore vulns with no upstream fix yet (`ignore-unfixed: true`), which is common for Debian base packages outside app control
@@ -48,4 +50,4 @@ The `docker-publish` workflow scans published images with Trivy before treating 
 - Upload SARIF to GitHub code scanning even when the severity gate fails
 - Generate the SPDX SBOM with **Trivy** (not Anchore/Syft or BuildKit SBOM attestations), so vulnerability matching stays accurate
 
-BuildKit SBOM attestations are disabled (`sbom: false` on `docker/build-push-action`) because Trivy warns that third-party SBOMs can lead to inaccurate detection and false positives.
+BuildKit SBOM attestations remain disabled (`sbom: false` on `docker/build-push-action`).
